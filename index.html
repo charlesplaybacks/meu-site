@@ -6,6 +6,7 @@
     <title>CHARLES PLAYBACK - PRO</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root { 
             --primary: #fff159; 
@@ -256,7 +257,6 @@
             margin-top: 10px; border: 1px dotted var(--primary); 
         }
 
-        /* --- NOVOS ESTILOS DE CARREGAMENTO --- */
         #loader-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 9999;
@@ -276,6 +276,18 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #qrcode-container {
+            background: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 0 auto 15px;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -314,11 +326,14 @@
                 
                 <div style="background: rgba(52, 131, 250, 0.1); padding: 15px; border-radius: 15px; margin-bottom: 20px; border: 1px dashed var(--accent); text-align: center;">
                     <small style="color: var(--accent); font-weight: 700; display: block; margin-bottom: 10px;">ESCANEIE O QR CODE:</small>
-                    <img src="https://yhwifmxfaqjsllqzvxkq.supabase.co/storage/v1/object/sign/playbacks/capas/1769022762354_1000898667.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV83N2I5M2JkNS1iMGJjLTQ4MzQtYThmZC01NzYxYzlhYmJlMjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwbGF5YmFja3MvY2FwYXMvMTc2OTAyMjc2MjM1NF8xMDAwODk4NjY3LmpwZyIsImlhdCI6MTc2OTAyMjc2MywiZXhwIjoyMDg0MzgyNzYzfQ.Ns7IeUej5r9ogvoos7-bFWkKDQaTDkSWEuqEEx0p8VU" style="width: 200px; border-radius: 10px; margin-bottom: 15px; border: 5px solid #fff;">
+                    
+                    <div id="qrcode-container">
+                         <div id="qrcode"></div>
+                    </div>
                     
                     <small style="color: var(--accent); font-weight: 700; display: block; margin-bottom: 5px;">PIX COPIA E COLA:</small>
-                    <code id="pix-key" style="font-size: 11px; font-weight: 800; color: #fff; word-break: break-all; display: block; background: #000; padding: 10px; border-radius: 8px;">00020101021126580014br.gov.bcb.pix01362557c638-b96a-4c51-a170-9690a4d750615204000053039865802BR5915CHARLES A BRAGA6007MUCAMBO62070503***63048CB7</code>
-                    <button class="btn-outline" style="padding: 10px; font-size: 12px;" onclick="copyPix()">Copia e Colar</button>
+                    <code id="pix-key" style="font-size: 11px; font-weight: 800; color: #fff; word-break: break-all; display: block; background: #000; padding: 10px; border-radius: 8px;">Gerando chave...</code>
+                    <button id="btn-copy-pix" class="btn-outline" style="padding: 10px; font-size: 12px;" onclick="copyPix()">Copia e Colar</button>
                 </div>
 
                 <label style="font-size: 12px; color: #888; margin-bottom: 8px; display: block;">Anexe o comprovante (Foto):</label>
@@ -413,6 +428,7 @@
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
     let currentUser = null, carrinho = JSON.parse(localStorage.getItem('MP_CART')) || [];
+    let qrcodeInstance = null;
 
     async function init() {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -421,15 +437,69 @@
         updateCartUI();
     }
 
+    function gerarPixDinamico(valor) {
+        const chave = "2557c638-b96a-4c51-a170-9690a4d75061";
+        const nome = "CHARLES A BRAGA";
+        const cidade = "MUCAMBO";
+        const txtValor = valor.toFixed(2);
+
+        let payload = "000201010211";
+        let merchantAccount = "0014br.gov.bcb.pix0136" + chave;
+        payload += "26" + (merchantAccount.length) + merchantAccount;
+        payload += "520400005303986";
+        payload += "54" + (txtValor.length.toString().padStart(2, '0')) + txtValor;
+        payload += "5802BR";
+        payload += "59" + (nome.length.toString().padStart(2, '0')) + nome;
+        payload += "60" + (cidade.length.toString().padStart(2, '0')) + cidade;
+        payload += "62070503***6304";
+
+        function getCRC16(data) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < data.length; i++) {
+                crc ^= data.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+                    else crc <<= 1;
+                }
+            }
+            return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        }
+        return payload + getCRC16(payload);
+    }
+
     async function verificarAdmin() {
         if (!currentUser) { alert("Faça login primeiro."); return; }
         const { data } = await _supabase.from('profiles').select('is_admin').eq('id', currentUser.id).single();
         if (data && data.is_admin === true) { showPage('admin'); } else { alert("Você não é um Admin"); }
     }
 
+    // --- FUNÇÃO CORRIGIDA DE COPIAR ---
     function copyPix() {
-        const text = "00020101021126580014br.gov.bcb.pix01362557c638-b96a-4c51-a170-9690a4d750615204000053039865802BR5915CHARLES A BRAGA6007MUCAMBO62070503***63048CB7";
-        navigator.clipboard.writeText(text).then(() => alert("Código Pix Copiado!"));
+        const textToCopy = document.getElementById('pix-key').innerText;
+        const btn = document.getElementById('btn-copy-pix');
+
+        if (textToCopy === "Gerando chave..." || textToCopy === "Adicione itens") return;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const originalText = btn.innerText;
+            btn.innerText = "✓ COPIADO!";
+            btn.style.background = "var(--success)";
+            btn.style.color = "white";
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.background = "rgba(255,255,255,0.05)";
+                btn.style.color = "#fff";
+            }, 2000);
+        }).catch(err => {
+            // Fallback para navegadores sem suporte a clipboard API
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            alert("Código Copiado!");
+        });
     }
 
     function showPage(p) {
@@ -521,8 +591,12 @@
 
     function updateCartUI() {
         const lista = document.getElementById('lista-carrinho');
+        const total = carrinho.reduce((a, b) => a + b.preco, 0);
+
         if(carrinho.length === 0) {
             lista.innerHTML = "<p style='color:#888; text-align:center; padding:30px;'>O carrinho está vazio</p>";
+            document.getElementById('pix-key').innerText = "Adicione itens";
+            if(document.getElementById('qrcode')) document.getElementById('qrcode').innerHTML = "";
         } else {
             lista.innerHTML = carrinho.map(i => `
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#000; padding:15px; border-radius:12px; margin-bottom:10px; border: 1px solid #222;">
@@ -532,8 +606,18 @@
                     </div>
                     <button onclick="removerItem(${i.tempId})" style="width:36px; height:36px; padding:0; background:rgba(255,0,0,0.1); color:red; border-radius:10px; font-weight:bold; border: 1px solid rgba(255,0,0,0.2);">✕</button>
                 </div>`).join('');
+            
+            const pixString = gerarPixDinamico(total);
+            document.getElementById('pix-key').innerText = pixString;
+            
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), {
+                text: pixString,
+                width: 180,
+                height: 180
+            });
         }
-        document.getElementById('carrinho-total').innerText = "Total: R$ " + carrinho.reduce((a,b)=>a+b.preco,0).toFixed(2);
+        document.getElementById('carrinho-total').innerText = "Total: R$ " + total.toFixed(2);
     }
 
     function removerItem(t) { carrinho = carrinho.filter(i => i.tempId !== t); localStorage.setItem('MP_CART', JSON.stringify(carrinho)); updateCartUI(); }
@@ -615,7 +699,6 @@
         }
     }
 
-    // --- FUNÇÃO DE UPLOAD COM BARRA DE CARREGAMENTO ---
     async function gerarLinkGenerico() {
         const fileCapa = document.getElementById('up-capa').files[0];
         const fileAudio = document.getElementById('up-audio').files[0];
@@ -631,7 +714,6 @@
         progressText.innerText = '0%';
 
         try {
-            // PASSO 1: Capa
             loaderText.innerText = "ENVIANDO CAPA...";
             const nomeCapa = `capas/${Date.now()}_${fileCapa.name}`;
             await _supabase.storage.from('playbacks').upload(nomeCapa, fileCapa);
@@ -641,7 +723,6 @@
             const { data: resCapa } = await _supabase.storage.from('playbacks').createSignedUrl(nomeCapa, 315360000);
             document.getElementById('out-capa').value = resCapa.signedUrl;
 
-            // PASSO 2: Áudio
             loaderText.innerText = "ENVIANDO ÁUDIO (ISSO PODE DEMORAR)...";
             const nomeAudio = `audios/${Date.now()}_${fileAudio.name}`;
             await _supabase.storage.from('playbacks').upload(nomeAudio, fileAudio);
