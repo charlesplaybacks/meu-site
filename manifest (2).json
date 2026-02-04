@@ -1,0 +1,14 @@
+{
+  "background_color": "#ffffff",
+  "dir": "rtl",
+  "display": "standalone",
+  "name": "Charles Playback Pro",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "short_name": "Playback Pro",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "description": "Playbacks profissionais de piseiro, forró e swingado para tecladistas e músicos.",
+  "id": "charles-playback-pro",
+  "lang": "pt"
+}
