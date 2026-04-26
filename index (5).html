@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CHARLES PLAYBACK - PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* ============================================================
+           VARIÁVEIS & RESET
+        ============================================================ */
+        :root {
+            --primary: #fff159;
+            --primary-dark: #d4c63b;
+            --primary-glow: rgba(255, 241, 89, 0.35);
+            --accent: #3483fa;
+            --accent-glow: rgba(52, 131, 250, 0.3);
+            --success: #00c853;
+            --success-glow: rgba(0, 200, 83, 0.3);
+            --danger: #ff4747;
+            --danger-glow: rgba(255, 71, 71, 0.3);
+            --bg: #080810;
+            --bg2: #0d0d18;
+            --card-bg: rgba(18, 18, 30, 0.85);
+            --card-border: rgba(255, 255, 255, 0.07);
+            --text: #ffffff;
+            --text-dim: #8888aa;
+            --glass: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            color: var(--text);
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 20% -10%, rgba(52,131,250,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 110%, rgba(255,241,89,0.08) 0%, transparent 60%);
+        }
+
+        /* ============================================================
+           PARTÍCULAS DE FUNDO
+        ============================================================ */
+        #particles-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0;
+            animation: floatParticle linear infinite;
+        }
+        @keyframes floatParticle {
+            0%   { opacity: 0; transform: translateY(100vh) scale(0); }
+            10%  { opacity: 0.6; }
+            90%  { opacity: 0.3; }
+            100% { opacity: 0; transform: translateY(-10vh) scale(1); }
+        }
+
+        /* ============================================================
+           APP SHELL
+        ============================================================ */
+        .app-shell {
+            width: 100%;
+            max-width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .app-shell { max-width: 1200px; margin: 0 auto; }
+            .nav-tabs { max-width: 1200px !important; left: 50% !important; transform: translateX(-50%); }
+        }
+
+        /* ============================================================
+           HEADER
+        ============================================================ */
+        header {
+            background: rgba(8, 8, 16, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 18px var(--primary-glow);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { box-shadow: 0 0 18px var(--primary-glow); }
+            50% { box-shadow: 0 0 32px rgba(255,241,89,0.6); }
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 17px;
+            color: var(--primary);
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 20px var(--primary-glow);
+            line-height: 1.1;
+        }
+
+        .logo small {
+            display: block;
+            font-size: 9px;
+            color: var(--text-dim);
+            letter-spacing: 3px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+        }
+
+        .user-tag {
+            background: var(--glass);
+            padding: 7px 16px;
+            border-radius: 30px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            border: 1px solid var(--glass-border);
+            color: var(--primary);
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+
+        .user-tag.logged-in {
+            border-color: rgba(0, 200, 83, 0.4);
+            color: var(--success);
+            background: rgba(0, 200, 83, 0.08);
+        }
+
+        /* ============================================================
+           NAVEGAÇÃO INFERIOR
+        ============================================================ */
+        .nav-tabs {
+            display: flex;
+            background: rgba(10, 10, 20, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 99;
+            border-top: 1px solid var(--glass-border);
+            padding: 6px 0 14px 0;
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.7);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            text-align: center;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .tab-icon {
+            font-size: 20px;
+            transition: transform 0.3s, filter 0.3s;
+            display: block;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+        }
+
+        .tab-btn.active .tab-icon {
+            transform: translateY(-4px) scale(1.25);
+            filter: drop-shadow(0 0 10px var(--primary));
+        }
+
+        .tab-btn.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 2px;
+            background: var(--primary);
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 0 12px var(--primary);
+        }
+
+        .tab-btn:active { transform: scale(0.88); }
+
+        @keyframes cartJump {
+            0%   { transform: translateY(-4px) scale(1.25); }
+            40%  { transform: translateY(-14px) scale(1.5); }
+            70%  { transform: translateY(-4px) scale(1.3); }
+            100% { transform: translateY(-4px) scale(1.25); }
+        }
+        .cart-animate .tab-icon { animation: cartJump 0.6s ease; }
+
+        .cart-badge {
+            position: absolute;
+            top: 6px;
+            right: calc(50% - 18px);
+            background: var(--danger);
+            color: #fff;
+            font-size: 8px;
+            font-weight: 900;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--bg);
+            display: none;
+        }
+
+        /* ============================================================
+           CONTEÚDO PRINCIPAL
+        ============================================================ */
+        .main-content {
+            padding: 20px 16px;
+            flex-grow: 1;
+            padding-bottom: 110px;
+        }
+
+        .page { display: none; animation: fadeIn 0.35s ease; }
+        .page.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============================================================
+           SEÇÃO HERO (LOJA)
+        ============================================================ */
+        .hero-banner {
+            background: linear-gradient(135deg, rgba(52,131,250,0.15) 0%, rgba(255,241,89,0.08) 100%);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 28px 24px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,241,89,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-banner h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 22px;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary-glow);
+            margin-bottom: 6px;
+        }
+
+        .hero-banner p {
+            color: var(--text-dim);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 200, 83, 0.12);
+            border: 1px solid rgba(0, 200, 83, 0.3);
+            color: var(--success);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-top: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: blink 1.2s infinite;
+            box-shadow: 0 0 6px var(--success);
+        }
+
+        /* ============================================================
+           FILTRO
+        ============================================================ */
+        .filter-container {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-select {
+            background: var(--glass);
+            color: var(--primary);
+            border: 1px solid var(--glass-border);
+            padding: 9px 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .filter-select:focus { border-color: var(--primary); }
+
+        /* ============================================================
+           GRID DE PRODUTOS
+        ============================================================ */
+        .vitrine-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 22px;
+        }
+
+        .prod-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            backdrop-filter: blur(12px);
+        }
+
+        .prod-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,241,89,0.15);
+            border-color: rgba(255,241,89,0.2);
+        }
+
+        .prod-card-img-wrap {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .prod-card img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease;
+        }
+
+        .prod-card:hover img { transform: scale(1.05); }
+
+        .prod-card-overlay {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 80px;
+            background: linear-gradient(to top, rgba(8,8,16,0.95) 0%, transparent 100%);
+        }
+
+        .prod-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: var(--primary);
+            color: #000;
+            font-size: 9px;
+            font-weight: 900;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .prod-info { padding: 20px; }
+
+        .prod-info h3 {
+            font-size: 17px;
+            font-weight: 800;
+            margin-bottom: 3px;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        .author-tag {
+            color: var(--text-dim);
+            font-size: 11px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .author-tag::before {
+            content: '♪';
+            color: var(--primary);
+            font-size: 10px;
+        }
+
+        .price-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .price {
+            color: var(--primary);
+            font-size: 26px;
+            font-weight: 900;
+            text-shadow: 0 0 14px var(--primary-glow);
+            line-height: 1;
+        }
+
+        .price-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Player de áudio customizado */
+        .audio-wrap {
+            margin: 14px 0;
+            position: relative;
+        }
+
+        audio {
+            width: 100%;
+            height: 38px;
+            border-radius: 30px;
+            filter: invert(100%) hue-rotate(180deg) brightness(1.4) saturate(1.2);
+            outline: none;
+        }
+
+        /* Botão adicionar ao carrinho */
+        .btn-add-cart {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 900;
+            cursor: pointer;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            background: var(--accent);
+            color: #fff;
+            /* Contorno preto na letra */
+            text-shadow: 
+                -1px -1px 0 #000,  
+                 1px -1px 0 #000,
+                -1px  1px 0 #000,
+                 1px  1px 0 #000;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        /* Efeito do risquinho correndo ao redor com troca de cor - MAIS VISÍVEL */
+        .btn-add-cart::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                transparent 0deg, 
+                transparent 280deg, 
+                currentColor 360deg
+            );
+            animation: rotateBorder 2.5s linear infinite, colorCycle 10s steps(4) infinite;
+            z-index: -2;
+            filter: blur(1px); /* Leve brilho para destacar mais */
+        }
+
+        /* Camada interna para manter a cor do botão - Inset maior para borda mais grossa */
+        .btn-add-cart::before {
+            content: '';
+            position: absolute;
+            inset: 4px; /* Aumentado de 2px para 4px para o risco ficar mais grosso */
+            background: var(--accent);
+            border-radius: 10px;
+            z-index: -1;
+            transition: background 0.3s;
+        }
+
+        @keyframes rotateBorder {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes colorCycle {
+            0% { color: #ff0000; }    /* Vermelho */
+            25% { color: #fff159; }   /* Amarelo */
+            50% { color: #00ff00; }   /* Verde */
+            75% { color: #00ffff; }   /* Ciano */
+            100% { color: #ff0000; }
+        }
+
+        .btn-add-cart:hover {
+            box-shadow: 0 8px 24px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-add-cart:hover::before {
+            background: #4a90fb;
+        }
+
+        .btn-add-cart.added {
+            color: #fff;
+        }
+        
+        .btn-add-cart.added::before {
+            background: var(--success);
+        }
+        
+        .btn-add-cart.added::after {
+            background: conic-gradient(transparent, transparent, transparent, #fff);
+            animation: rotateBorder 2.5s linear infinite;
+        }
+
+        /* ============================================================
+           CARDS GENÉRICOS
+        ============================================================ */
+        .card {
+            background: var(--card-bg);
+            border-radius: 22px;
+            padding: 22px;
+            margin-bottom: 16px;
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(12px);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* ============================================================
+           CARRINHO
+        ============================================================ */
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.4);
+            padding: 14px 16px;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            border: 1px solid var(--card-border);
+            transition: border-color 0.3s;
+            animation: slideIn 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        /* Efeito do risquinho correndo verde nos itens do carrinho */
+        .cart-item::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                transparent 0deg, 
+                transparent 280deg, 
+                #00ff00 360deg
+            );
+            animation: rotateBorder 2.5s linear infinite;
+            z-index: -2;
+            filter: blur(1px);
+        }
+
+        .cart-item::before {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            background: #0d0d18; /* Cor de fundo do card para cobrir o centro do gradiente */
+            border-radius: 12px;
+            z-index: -1;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .cart-item:hover { border-color: rgba(255,241,89,0.15); }
+
+        .cart-item-info { display: flex; flex-direction: column; gap: 3px; }
+
+        .cart-item-name { font-weight: 700; font-size: 14px; }
+
+        .cart-item-price {
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .btn-remove-item {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            background: rgba(255, 71, 71, 0.1);
+            color: var(--danger);
+            border-radius: 10px;
+            font-weight: 900;
+            border: 1px solid rgba(255, 71, 71, 0.2);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-remove-item:hover {
+            background: rgba(255,71,71,0.25);
+            box-shadow: 0 0 12px var(--danger-glow);
+        }
+
+        .cart-total-box {
+            background: linear-gradient(135deg, rgba(255,241,89,0.08) 0%, rgba(255,241,89,0.03) 100%);
+            border: 1px solid rgba(255,241,89,0.2);
+            border-radius: 16px;
+            padding: 18px 20px;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cart-total-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+
+        .cart-total-value {
+            font-size: 28px;
+            color: var(--primary);
+            font-weight: 900;
+            text-shadow: 0 0 14px var(--primary-glow);
+        }
+
+        .pix-box {
+            background: rgba(52, 131, 250, 0.06);
+            padding: 20px;
+            border-radius: 18px;
+            margin-bottom: 20px;
+            border: 1px dashed rgba(52, 131, 250, 0.3);
+            text-align: center;
+        }
+
+        .pix-title {
+            color: var(--accent);
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        #qrcode-container {
+            background: #fff;
+            padding: 12px;
+            border-radius: 14px;
+            margin: 0 auto 16px;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px rgba(52,131,250,0.2);
+        }
+
+        .pix-copy-label {
+            color: var(--text-dim);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        #pix-key {
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            word-break: break-all;
+            display: block;
+            background: rgba(0,0,0,0.5);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            font-family: 'Courier New', monospace;
+            margin-bottom: 10px;
+        }
+
+        /* ============================================================
+           INPUTS & BOTÕES GLOBAIS
+        ============================================================ */
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 15px 18px;
+            margin-bottom: 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 14px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            outline: none;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        input::placeholder { color: #555; }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #ffe800;
+            box-shadow: 0 8px 24px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 8px 24px var(--success-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 24px var(--danger-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        button:active { transform: scale(0.96) !important; }
+
+        /* ============================================================
+           PÁGINA DE CONTA / AUTH
+        ============================================================ */
+        .auth-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .auth-header .auth-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 20px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        .auth-header h3 {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .auth-header p {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--glass-border);
+        }
+
+        .auth-divider span {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        /* Perfil logado */
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary) 0%, #ff9f00 100%);
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-size: 32px;
+            font-weight: 900;
+            box-shadow: 0 8px 30px var(--primary-glow);
+            border: 3px solid rgba(255,241,89,0.3);
+        }
+
+        .profile-email {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .profile-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0,200,83,0.12);
+            border: 1px solid rgba(0,200,83,0.3);
+            color: var(--success);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+
+        /* Redes sociais */
+        .social-link {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(0,0,0,0.35);
+            padding: 14px 16px;
+            border-radius: 14px;
+            text-decoration: none;
+            color: #fff;
+            margin-bottom: 10px;
+            border: 1px solid var(--card-border);
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .social-link:hover {
+            transform: translateX(4px);
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .social-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .social-yt { background: rgba(255,0,0,0.15); border: 1px solid rgba(255,0,0,0.2); }
+        .social-ig { background: rgba(225,48,108,0.15); border: 1px solid rgba(225,48,108,0.2); }
+
+        /* ============================================================
+           DOWNLOADS
+        ============================================================ */
+        .downloads-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .downloads-header h2 {
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .downloads-header .count-badge {
+            background: var(--primary);
+            color: #000;
+            font-size: 10px;
+            font-weight: 900;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        .download-card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 18px 20px;
+            margin-bottom: 12px;
+            border: 1px solid var(--card-border);
+            border-left: 4px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.3s;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .download-card:hover { transform: translateX(4px); }
+        .download-card.approved { border-left-color: var(--success); }
+        .download-card.pending  { border-left-color: var(--primary); }
+        .download-card.rejected { border-left-color: var(--danger); }
+
+        .download-card-info { flex: 1; }
+
+        .download-card-name {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .status-blink {
+            color: var(--primary);
+            font-weight: 800;
+            animation: blink 1.2s infinite;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-blink::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: blink 1.2s infinite;
+        }
+
+        .status-reprovado {
+            color: var(--danger);
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .btn-download {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--success);
+            color: #fff;
+            transition: all 0.25s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-download:hover {
+            box-shadow: 0 6px 20px var(--success-glow);
+            transform: translateY(-2px);
+        }
+
+        /* ============================================================
+           PAINEL ADMIN
+        ============================================================ */
+        .admin-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .admin-back-btn {
+            width: auto;
+            padding: 10px 16px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .admin-back-btn:hover { background: rgba(255,255,255,0.08); }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .admin-table th {
+            color: var(--text-dim);
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .admin-table td {
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: middle;
+        }
+
+        .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .admin-table .btn-sm {
+            padding: 7px 12px;
+            font-size: 10px;
+            border-radius: 8px;
+            width: auto;
+            font-weight: 800;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .admin-table .btn-sm:hover { transform: translateY(-1px); }
+
+        .upload-section h4 {
+            font-size: 15px;
+            font-weight: 800;
+            margin-bottom: 18px;
+            color: var(--primary);
+        }
+
+        .upload-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 10px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .upload-label .step-num {
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            color: #000;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .url-output {
+            background: rgba(0,0,0,0.5) !important;
+            color: var(--primary) !important;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            margin-top: 8px;
+            border: 1px dashed rgba(255,241,89,0.3) !important;
+            border-radius: 12px;
+        }
+
+        /* ============================================================
+           LOADER OVERLAY
+        ============================================================ */
+        #loader-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loader-content { text-align: center; }
+
+        .spinner-ring {
+            width: 64px;
+            height: 64px;
+            border: 4px solid rgba(255,241,89,0.15);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #loader-text {
+            font-weight: 800;
+            color: var(--primary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .progress-container {
+            width: 260px;
+            background: rgba(255,255,255,0.08);
+            height: 6px;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 0 auto 8px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+            box-shadow: 0 0 12px var(--primary);
+            transition: width 0.3s ease;
+            border-radius: 20px;
+        }
+
+        #progress-text {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-weight: 700;
+        }
+
+        /* ============================================================
+           FOOTER CREDITS
+        ============================================================ */
+        .footer-credits {
+            text-align: center;
+            font-size: 11px;
+            color: #444;
+            margin-top: 30px;
+            padding: 20px;
+            line-height: 1.7;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .footer-credits strong { color: var(--primary); }
+
+        /* ============================================================
+           EMPTY STATE
+        ============================================================ */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-dim);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 48px;
+            margin-bottom: 14px;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           TOAST NOTIFICATION
+        ============================================================ */
+        #toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(20, 20, 35, 0.95);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 9998;
+            opacity: 0;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(12px);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #toast.success { border-color: rgba(0,200,83,0.4); color: var(--success); }
+        #toast.error   { border-color: rgba(255,71,71,0.4); color: var(--danger); }
+        #toast.info    { border-color: rgba(255,241,89,0.4); color: var(--primary); }
+
+        /* ============================================================
+           SCROLLBAR CUSTOMIZADA
+        ============================================================ */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* ============================================================
+           RESPONSIVIDADE
+        ============================================================ */
+        @media (max-width: 480px) {
+            .hero-banner h1 { font-size: 18px; }
+            .vitrine-grid { grid-template-columns: 1fr; }
+            .logo { font-size: 14px; }
+        }
+
+        @media (min-width: 768px) {
+            .main-content { padding: 28px 28px; padding-bottom: 110px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Partículas de fundo -->
+<div id="particles-bg"></div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- Loader overlay -->
+<div id="loader-overlay">
+    <div class="loader-content">
+        <div class="spinner-ring"></div>
+        <p id="loader-text">SUBINDO ARQUIVOS...</p>
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="progress-text">0%</p>
+    </div>
+</div>
+
+<div class="app-shell">
+    <!-- HEADER -->
+    <header>
+        <div class="logo-wrap">
+            <div class="logo-icon">🎹</div>
+            <div class="logo">
+                CHARLES PRO
+                <small>PLAYBACK STORE</small>
+            </div>
+        </div>
+        <div id="user-display" class="user-tag">Visitante</div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <div class="main-content">
+
+        <!-- ===================== PÁGINA: LOJA ===================== -->
+        <div id="page-loja" class="page active">
+            <div class="hero-banner">
+                <h1>🎵 Playbacks Exclusivos</h1>
+                <p>Músicas profissionais para você arrasar no palco. Qualidade de estúdio, direto no seu celular.</p>
+                <div class="hero-badge">Loja Online • Compra 100% Segura</div>
+            </div>
+
+            <div class="filter-container">
+                <span class="filter-label">Ordenar por</span>
+                <select class="filter-select" onchange="renderL(this.value)">
+                    <option value="desc">Mais Recentes</option>
+                    <option value="asc">Mais Antigos</option>
+                </select>
+            </div>
+
+            <div id="vitrine" class="vitrine-grid"></div>
+        </div>
+
+        <!-- ===================== PÁGINA: CARRINHO ===================== -->
+        <div id="page-carrinho" class="page">
+            <div class="card">
+                <div class="card-title">
+                    <div class="card-title-icon">🛒</div>
+                    Meu Carrinho
+                </div>
+                <div id="lista-carrinho"></div>
+                <div id="carrinho-total" class="cart-total-box" style="display:none;">
+                    <span class="cart-total-label">Total</span>
+                    <span class="cart-total-value" id="cart-total-value">R$ 0,00</span>
+                </div>
+
+                <div class="pix-box">
+                    <div class="pix-title">💠 Pagamento via PIX</div>
+                    <div id="qrcode-container">
+                        <div id="qrcode"></div>
+                    </div>
+                    <span class="pix-copy-label">PIX Copia e Cola:</span>
+                    <code id="pix-key">Adicione itens ao carrinho</code>
+                    <button id="btn-copy-pix" class="btn-outline" style="padding: 11px; font-size: 12px; margin-top: 0;" onclick="copyPix()">📋 Copiar Código PIX</button>
+                </div>
+
+                <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px; display: block; font-weight: 600;">📎 Anexe o comprovante (foto):</label>
+                <input type="file" id="comprovante-file" accept="image/*">
+                <button id="btn-enviar-comp" class="btn-success" onclick="enviarComprovante()">✅ Finalizar Pedido</button>
+            </div>
+        </div>
+
+        <!-- ===================== PÁGINA: CONTA ===================== -->
+        <div id="page-conta" class="page">
+            <div id="auth-box" class="card" style="margin-top: 10px; max-width: 420px; margin-left: auto; margin-right: auto;">
+                <div class="auth-header">
+                    <div class="auth-icon">🔐</div>
+                    <h3>Bem-vindo de volta</h3>
+                    <p>Acesse sua conta para comprar e baixar playbacks</p>
+                </div>
+
+                <input type="email" id="auth-email" placeholder="Seu e-mail">
+                <input type="password" id="auth-password" placeholder="Sua senha">
+
+                <div id="login-actions">
+                    <button class="btn-primary" onclick="handleLogin()">🚀 Entrar agora</button>
+                    <div class="auth-divider"><span>ou</span></div>
+                    <button class="btn-outline" onclick="toggleAuthMode(true)">Não tenho conta — Criar agora</button>
+                </div>
+
+                <div id="signup-actions" style="display:none;">
+                    <button class="btn-success" onclick="handleSignUp()">✨ Criar minha conta</button>
+                    <div class="auth-divider"><span>ou</span></div>
+                    <button class="btn-outline" onclick="toggleAuthMode(false)">Já sou cliente — Fazer login</button>
+                </div>
+            </div>
+
+            <div id="profile-box" style="display:none; max-width: 420px; margin-left: auto; margin-right: auto;">
+                <div class="card" style="text-align: center; padding: 30px 24px;">
+                    <div class="profile-avatar" id="profile-avatar-letter">C</div>
+                    <p class="profile-email" id="profile-email"></p>
+                    <div class="profile-role-badge">✓ Cliente Verificado</div>
+                    <button id="btn-acesso-admin" class="btn-danger" style="margin-bottom:10px;" onclick="verificarAdmin()">⚙️ Painel de Controle</button>
+                    <button class="btn-outline" onclick="handleLogout()">Sair da Conta</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <div class="card-title-icon">🌐</div>
+                        Nossas Redes
+                    </div>
+                    <a href="https://www.youtube.com/@CharlesTeclas" target="_blank" class="social-link">
+                        <div class="social-icon social-yt">▶</div>
+                        <div>
+                            <div style="font-size:13px; font-weight:700;">YouTube</div>
+                            <div style="font-size:11px; color:var(--text-dim);">@CharlesTeclas</div>
+                        </div>
+                    </a>
+                    <a href="https://www.instagram.com/Charles_teclas1" target="_blank" class="social-link">
+                        <div class="social-icon social-ig" style="font-size:16px;">📸</div>
+                        <div>
+                            <div style="font-size:13px; font-weight:700;">Instagram</div>
+                            <div style="font-size:11px; color:var(--text-dim);">@Charles_teclas1</div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="footer-credits">
+                    © 2026 — Todos os direitos reservados a<br>
+                    <strong>Charles Teclas no Beat</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== PÁGINA: DOWNLOADS ===================== -->
+        <div id="page-downloads" class="page">
+            <div class="downloads-header">
+                <h2>🔥 Meus Playbacks</h2>
+            </div>
+            <div id="downloads-list"></div>
+        </div>
+
+        <!-- ===================== PÁGINA: ADMIN ===================== -->
+        <div id="page-admin" class="page">
+            <div class="card">
+                <div class="admin-header">
+                    <button class="admin-back-btn" onclick="showPage('conta')">← Voltar</button>
+                    <div class="card-title" style="margin-bottom:0;">⚙️ Painel de Controle</div>
+                </div>
+                <div style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📊 Visualizações do Site</div>
+                        <button class="btn-sm btn-danger" onclick="zerarContador()" style="padding: 6px 12px; font-size: 10px;">🔄 Zerar</button>
+                    </div>
+                    <div style="font-size: 36px; font-weight: 900; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow);" id="contador-visualizacoes">0</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="admin-header">
+                    <div class="card-title" style="margin-bottom:0;">⚙️ Pedidos Pendentes</div>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Comprovante</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabela-admin"></tbody>
+                </table>
+            </div>
+
+            <div class="card upload-section">
+                <h4>➕ Cadastrar Novo Playback</h4>
+                <div class="upload-label">
+                    <span class="step-num">1</span> Capa do Álbum:
+                </div>
+                <input type="file" id="up-capa" accept="image/*">
+                <div class="upload-label">
+                    <span class="step-num">2</span> Arquivo de Áudio:
+                </div>
+                <input type="file" id="up-audio" accept="audio/*">
+                <button class="btn-primary" id="btn-upload-admin" onclick="gerarLinkGenerico()">⬆️ Subir e Gerar Links</button>
+                <div style="margin-top:16px;">
+                    <input type="text" id="out-capa" class="url-output" readonly placeholder="🖼️ Link da Capa">
+                    <input type="text" id="out-audio" class="url-output" readonly placeholder="🎵 Link do Áudio">
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /main-content -->
+
+    <!-- NAVEGAÇÃO INFERIOR -->
+    <nav class="nav-tabs">
+        <div id="tab-loja" class="tab-btn active" onclick="showPage('loja')">
+            <span class="tab-icon">🏠</span>
+            INÍCIO
+        </div>
+        <div id="tab-carrinho" class="tab-btn" onclick="showPage('carrinho')">
+            <span class="tab-icon">🛒</span>
+            CARRINHO
+            <span class="cart-badge" id="cart-badge">0</span>
+        </div>
+        <div id="tab-downloads" class="tab-btn" onclick="showPage('downloads')">
+            <span class="tab-icon">🔥</span>
+            PLAYBACKS
+        </div>
+        <div id="tab-conta" class="tab-btn" onclick="showPage('conta')">
+            <span class="tab-icon">👤</span>
+            PERFIL
+        </div>
+    </nav>
+</div><!-- /app-shell -->
+
+<script>
+    /* ============================================================
+       CONFIGURAÇÃO SUPABASE
+    ============================================================ */
+    const SB_URL = 'https://yhwifmxfaqjsllqzvxkq.supabase.co';
+    const SB_KEY = 'sb_publishable_S9gOQ0dXOn8GHD6eW2dTTQ_cFNO29o9';
+    const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+    let currentUser = null;
+    let carrinho = JSON.parse(localStorage.getItem('MP_CART')) || [];
+
+    /* ============================================================
+       PARTÍCULAS DE FUNDO
+    ============================================================ */
+    (function createParticles() {
+        const container = document.getElementById('particles-bg');
+        const colors = ['rgba(255,241,89,0.5)', 'rgba(52,131,250,0.4)', 'rgba(255,255,255,0.2)'];
+        for (let i = 0; i < 22; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = Math.random() * 3 + 1;
+            p.style.cssText = `
+                width: ${size}px;
+                height: ${size}px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                left: ${Math.random() * 100}%;
+                animation-duration: ${Math.random() * 20 + 15}s;
+                animation-delay: ${Math.random() * 15}s;
+            `;
+            container.appendChild(p);
+        }
+    })();
+
+    /* ============================================================
+       TOAST NOTIFICATION
+    ============================================================ */
+    function showToast(msg, type = 'info', duration = 2500) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.className = 'show ' + type;
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => {
+            toast.className = '';
+        }, duration);
+    }
+
+    /* ============================================================
+       INICIALIZAÇÃO
+    ============================================================ */
+    async function init() {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) updateUserStatus(session.user);
+        renderL();
+        updateCartUI();
+        
+        // LÓGICA DEFINITIVA DE CONTAGEM
+        // 1. Só conta se não for Admin (verificado pelo localStorage que criamos no login)
+        // 2. Só conta uma vez por "sessão" (se fechar o navegador e abrir de novo, conta outra vez)
+        if (localStorage.getItem('MP_IS_ADMIN') === 'true') {
+            console.log('✅ ADMIN LOGADO - Não contando visualização.');
+        } else if (sessionStorage.getItem('VISITOU_HOJE')) {
+            console.log('ℹ️ Você já foi contado nesta sessão.');
+        } else {
+            // Se não for admin e não tiver visitado ainda, conta após 2 segundos
+            setTimeout(() => {
+                // Verificação dupla: checar se o usuário logou como admin nesse meio tempo
+                if (localStorage.getItem('MP_IS_ADMIN') !== 'true') {
+                    incrementarVisualizacoes();
+                    sessionStorage.setItem('VISITOU_HOJE', 'true');
+                }
+            }, 2000);
+        }
+    }
+
+    /* ============================================================
+       CONTADOR DE VISUALIZAÇÕES
+    ============================================================ */
+    async function incrementarVisualizacoes() {
+        try {
+            // Buscar o registro de visualizações
+            const { data: stats, error: fetchError } = await _supabase
+                .from('site_stats')
+                .select('*')
+                .eq('id', 1)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Erro ao buscar stats:', fetchError);
+                return;
+            }
+
+            if (stats) {
+                // Atualizar o contador existente
+                const novoValor = stats.visualizacoes + 1;
+                await _supabase
+                    .from('site_stats')
+                    .update({ visualizacoes: novoValor })
+                    .eq('id', 1);
+                console.log('📊 Contador incrementado para:', novoValor);
+            } else {
+                // Criar novo registro se não existir
+                await _supabase
+                    .from('site_stats')
+                    .insert([{ id: 1, visualizacoes: 1 }]);
+                console.log('📊 Primeiro acesso registrado');
+            }
+        } catch (e) {
+            console.error('Erro ao incrementar visualizações:', e);
+        }
+    }
+
+
+    async function carregarVisualizacoes() {
+        try {
+            const { data: stats } = await _supabase
+                .from('site_stats')
+                .select('visualizacoes')
+                .eq('id', 1)
+                .single();
+
+            if (stats) {
+                document.getElementById('contador-visualizacoes').innerText = stats.visualizacoes.toLocaleString('pt-BR');
+            }
+        } catch (e) {
+            console.error('Erro ao carregar visualizações:', e);
+        }
+    }
+
+    /* ============================================================
+       NAVEGAÇÃO
+    ============================================================ */
+    function showPage(p) {
+        document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+        const targetPage = document.getElementById('page-' + p);
+        if (targetPage) targetPage.classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+        const targetTab = document.getElementById('tab-' + p);
+        if (targetTab) targetTab.classList.add('active');
+        if (p === 'admin') {
+            carregarPedidosAdmin();
+            carregarVisualizacoes();
+        }
+        if (p === 'downloads') renderDownloads();
+        window.scrollTo(0, 0);
+    }
+
+    /* ============================================================
+       AUTENTICAÇÃO
+    ============================================================ */
+    function toggleAuthMode(s) {
+        document.getElementById('login-actions').style.display = s ? 'none' : 'block';
+        document.getElementById('signup-actions').style.display = s ? 'block' : 'none';
+    }
+
+    async function updateUserStatus(user) {
+        currentUser = user;
+        const display = document.getElementById('user-display');
+        const authBox = document.getElementById('auth-box');
+        const profileBox = document.getElementById('profile-box');
+
+        if (user) {
+            const name = user.email.split('@')[0];
+            display.innerText = name;
+            display.classList.add('logged-in');
+            authBox.style.display = 'none';
+            profileBox.style.display = 'block';
+            document.getElementById('profile-email').innerText = user.email;
+            document.getElementById('profile-avatar-letter').innerText = name.charAt(0).toUpperCase();
+            
+            // Verificar se é admin e marcar no localStorage
+            verificarEMarcarAdmin(user.id);
+        } else {
+            display.innerText = 'Visitante';
+            display.classList.remove('logged-in');
+            authBox.style.display = 'block';
+            profileBox.style.display = 'none';
+            // Limpar marcação de admin ao fazer logout
+            localStorage.removeItem('MP_IS_ADMIN');
+        }
+    }
+    
+    async function verificarEMarcarAdmin(userId) {
+        try {
+            const { data: profile } = await _supabase
+                .from('profiles')
+                .select('is_admin')
+                .eq('id', userId)
+                .single();
+            
+            if (profile && profile.is_admin === true) {
+                localStorage.setItem('MP_IS_ADMIN', 'true');
+                console.log('✅ Admin marcado no navegador');
+            } else {
+                localStorage.removeItem('MP_IS_ADMIN');
+            }
+        } catch (e) {
+            console.error('Erro ao verificar admin:', e);
+            localStorage.removeItem('MP_IS_ADMIN');
+        }
+    }
+
+    async function handleLogin() {
+        const e = document.getElementById('auth-email').value;
+        const s = document.getElementById('auth-password').value;
+        const { data, error } = await _supabase.auth.signInWithPassword({ email: e, password: s });
+        if (error) {
+            showToast('❌ ' + error.message, 'error');
+        } else {
+            updateUserStatus(data.user);
+            showToast('✅ Login realizado com sucesso!', 'success');
+            showPage('loja');
+            renderL();
+        }
+    }
+
+    async function handleSignUp() {
+        const e = document.getElementById('auth-email').value;
+        const s = document.getElementById('auth-password').value;
+        const { error } = await _supabase.auth.signUp({ email: e, password: s });
+        if (error) {
+            showToast('❌ ' + error.message, 'error');
+        } else {
+            showToast('✅ Conta criada! Verifique seu e-mail.', 'success', 4000);
+        }
+    }
+
+    async function handleLogout() {
+        await _supabase.auth.signOut();
+        currentUser = null;
+        updateUserStatus(null);
+        showToast('👋 Até logo!', 'info');
+        showPage('loja');
+        renderL();
+    }
+
+    /* ============================================================
+       LOJA — RENDER PRODUTOS
+    ============================================================ */
+    function pararOutrosAudios(audioAtual) {
+        document.querySelectorAll('audio').forEach(audio => {
+            if (audio !== audioAtual) { audio.pause(); audio.currentTime = 0; }
+        });
+    }
+
+    async function renderL(ordem = 'desc') {
+        const vitrine = document.getElementById('vitrine');
+        vitrine.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-dim);">
+            <div class="spinner-ring" style="margin:0 auto 14px;"></div>
+            <p style="font-size:13px;">Carregando playbacks...</p>
+        </div>`;
+
+        const { data } = await _supabase.from('musicas').select('*').order('id', { ascending: ordem === 'asc' });
+
+        if (data && data.length > 0) {
+            vitrine.innerHTML = data.map((p, idx) => `
+                <div class="prod-card" style="animation-delay:${idx * 0.06}s">
+                    <div class="prod-card-img-wrap">
+                        <img src="${p.imagen_u || p.Imagen_u}" alt="${p.nome || p.Nome}" loading="lazy">
+                        <div class="prod-card-overlay"></div>
+                        <div class="prod-badge">PLAYBACK</div>
+                    </div>
+                    <div class="prod-info">
+                        <h3>${p.nome || p.Nome}</h3>
+                        <span class="author-tag">Charles Teclas no Beat</span>
+                        <div class="price-row">
+                            <span class="price">R$ ${parseFloat(p.preço || p.Preço).toFixed(2)}</span>
+                            <span class="price-label">Preço único</span>
+                        </div>
+                        <div class="audio-wrap">
+                            <audio controls onplay="pararOutrosAudios(this)" src="${p.Audio_url}"></audio>
+                        </div>
+                        <button class="btn-add-cart" id="btn-cart-${p.id}" onclick="addCarrinho(event, ${p.id}, '${(p.nome || p.Nome).replace(/'/g, "\\'")}', ${p.preço || p.Preço})">
+                            🛒 Adicionar ao Carrinho
+                        </button>
+                    </div>
+                </div>`).join('');
+        } else {
+            vitrine.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+                <div class="empty-icon">🎵</div>
+                <p>Nenhum playback disponível no momento.</p>
+            </div>`;
+        }
+    }
+
+    /* ============================================================
+       CARRINHO
+    ============================================================ */
+    function addCarrinho(event, id, nome, preco) {
+        if (!currentUser) {
+            showToast('🔐 Faça login para comprar!', 'error');
+            return showPage('conta');
+        }
+
+        carrinho.push({ id, nome, preco, tempId: Date.now() });
+        localStorage.setItem('MP_CART', JSON.stringify(carrinho));
+        updateCartUI();
+
+        const btn = event.target;
+        btn.classList.add('added');
+        btn.innerText = '✓ ADICIONADO!';
+
+        const tabCarrinho = document.getElementById('tab-carrinho');
+        tabCarrinho.classList.add('cart-animate');
+        setTimeout(() => tabCarrinho.classList.remove('cart-animate'), 700);
+
+        showToast('🛒 ' + nome + ' adicionado!', 'success');
+
+        setTimeout(() => {
+            btn.classList.remove('added');
+            btn.innerText = '🛒 Adicionar ao Carrinho';
+        }, 1200);
+    }
+
+    function updateCartUI() {
+        const lista = document.getElementById('lista-carrinho');
+        const totalBox = document.getElementById('carrinho-total');
+        const totalValue = document.getElementById('cart-total-value');
+        const total = carrinho.reduce((a, b) => a + parseFloat(b.preco), 0);
+
+        // Badge do carrinho
+        const badge = document.getElementById('cart-badge');
+        if (carrinho.length > 0) {
+            badge.style.display = 'flex';
+            badge.innerText = carrinho.length;
+        } else {
+            badge.style.display = 'none';
+        }
+
+        if (carrinho.length === 0) {
+            lista.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">🛒</div>
+                <p>O carrinho está vazio</p>
+            </div>`;
+            totalBox.style.display = 'none';
+            document.getElementById('pix-key').innerText = 'Adicione itens ao carrinho';
+            const qrEl = document.getElementById('qrcode');
+            if (qrEl) qrEl.innerHTML = '';
+        } else {
+            lista.innerHTML = carrinho.map(i => `
+                <div class="cart-item">
+                    <div class="cart-item-info">
+                        <span class="cart-item-name">${i.nome}</span>
+                        <span class="cart-item-price">R$ ${parseFloat(i.preco).toFixed(2)}</span>
+                    </div>
+                    <button class="btn-remove-item" onclick="removerItem(${i.tempId})">✕</button>
+                </div>`).join('');
+
+            totalBox.style.display = 'flex';
+            totalValue.innerText = 'R$ ' + total.toFixed(2);
+
+            const pixString = gerarPixDinamico(total);
+            document.getElementById('pix-key').innerText = pixString;
+
+            const qrEl = document.getElementById('qrcode');
+            qrEl.innerHTML = '';
+            new QRCode(qrEl, { text: pixString, width: 176, height: 176 });
+        }
+    }
+
+    function removerItem(t) {
+        carrinho = carrinho.filter(i => i.tempId !== t);
+        localStorage.setItem('MP_CART', JSON.stringify(carrinho));
+        updateCartUI();
+        showToast('🗑️ Item removido', 'info');
+    }
+
+    async function enviarComprovante() {
+        const file = document.getElementById('comprovante-file').files[0];
+        if (!file || carrinho.length === 0) {
+            return showToast('⚠️ Adicione o comprovante e itens no carrinho!', 'error');
+        }
+        const btn = document.getElementById('btn-enviar-comp');
+        btn.disabled = true;
+        btn.innerText = '⏳ Processando...';
+        try {
+            const fileName = `${Date.now()}_comp.jpg`;
+            await _supabase.storage.from('comprovantes').upload(fileName, file);
+            const { data: urlRes } = _supabase.storage.from('comprovantes').getPublicUrl(fileName);
+            await _supabase.from('pedidos').insert([{
+                usuario: currentUser.email,
+                usuario_id: currentUser.id,
+                items: JSON.stringify(carrinho),
+                comprovante_url: urlRes.publicUrl,
+                status: 'pendente'
+            }]);
+            showToast('✅ Pedido enviado com sucesso!', 'success', 4000);
+            carrinho = [];
+            localStorage.removeItem('MP_CART');
+            updateCartUI();
+            showPage('downloads');
+        } catch (e) {
+            showToast('❌ Erro ao enviar. Tente novamente.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = '✅ Finalizar Pedido';
+        }
+    }
+
+    /* ============================================================
+       DOWNLOADS
+    ============================================================ */
+    async function renderDownloads() {
+        if (!currentUser) {
+            document.getElementById('downloads-list').innerHTML = `<div class="empty-state">
+                <div class="empty-icon">🔐</div>
+                <p>Faça login para ver seus playbacks</p>
+            </div>`;
+            return;
+        }
+
+        document.getElementById('downloads-list').innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-dim);">
+            <div class="spinner-ring" style="margin:0 auto 14px;"></div>
+            <p style="font-size:13px;">Carregando seus pedidos...</p>
+        </div>`;
+
+        const { data: pedidos } = await _supabase.from('pedidos').select('*')
+            .eq('usuario_id', currentUser.id).order('id', { ascending: false });
+
+        const container = document.getElementById('downloads-list');
+        container.innerHTML = '';
+
+        if (!pedidos || pedidos.length === 0) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">🎵</div>
+                <p>Você ainda não tem compras.</p>
+            </div>`;
+            return;
+        }
+
+        pedidos.forEach(p => {
+            JSON.parse(p.items).forEach(item => {
+                let statusClass = '';
+                let acaoHTML = '';
+
+                if (p.status === 'aprovado') {
+                    statusClass = 'approved';
+                    acaoHTML = `<button class="btn-download" onclick="gerarLinkAssinado(${item.id})">Download 📥</button>`;
+                } else if (p.status === 'reprovado') {
+                    statusClass = 'rejected';
+                    acaoHTML = `<span class="status-reprovado">❌ Não aprovado</span>`;
+                } else {
+                    statusClass = 'pending';
+                    acaoHTML = `<span class="status-blink">Aguarde sistema verificar o Pagamento</span>`;
+                }
+
+                container.innerHTML += `
+                    <div class="download-card ${statusClass}">
+                        <div class="download-card-info">
+                            <div class="download-card-name">${item.nome}</div>
+                            ${acaoHTML}
+                        </div>
+                    </div>`;
+            });
+        });
+    }
+
+    async function gerarLinkAssinado(musicaId) {
+        const { data: m } = await _supabase.from('musicas').select('audio_completo').eq('id', musicaId).single();
+        let caminhoArquivo = m.audio_completo.split('playbacks/').pop().split('?')[0];
+        const { data } = await _supabase.storage.from('playbacks').createSignedUrl(caminhoArquivo, 60);
+        window.open(data.signedUrl, '_blank');
+    }
+
+    /* ============================================================
+       ADMIN
+    ============================================================ */
+    async function verificarAdmin() {
+        if (!currentUser) {
+            showToast('🔐 Faça login primeiro.', 'error');
+            return;
+        }
+        const { data } = await _supabase.from('profiles').select('is_admin').eq('id', currentUser.id).single();
+        if (data && data.is_admin === true) {
+            showPage('admin');
+        } else {
+            showToast('🚫 Acesso negado. Você não é admin.', 'error');
+        }
+    }
+
+    async function carregarPedidosAdmin() {
+        const { data } = await _supabase.from('pedidos').select('*').eq('status', 'pendente');
+        document.getElementById('corpo-tabela-admin').innerHTML = data?.map(p => {
+            let itens = [];
+            try {
+                itens = typeof p.items === 'string' ? JSON.parse(p.items) : p.items;
+            } catch (e) {
+                console.error("Erro ao processar itens:", e);
+            }
+            
+            let totalPedido = 0;
+            const listaDetalhada = itens.map(i => {
+                const preco = parseFloat(i.preco) || 0;
+                totalPedido += preco;
+                return `• ${i.nome}: R$ ${preco.toFixed(2)}`;
+            }).join('\n');
+
+            const infoPedido = `DETALHES DO PEDIDO\n\nCliente: ${p.usuario}\n\nITENS:\n${listaDetalhada}\n\n----------------------\nTOTAL: R$ ${totalPedido.toFixed(2)}`;
+
+            return `<tr>
+                <td onclick="alert(\`${infoPedido}\`)" style="cursor:pointer; color:var(--accent); text-decoration:underline; font-weight:700; font-size: 11px; word-break: break-all;">${p.usuario}</td>
+                <td><button class="btn-sm btn-outline" onclick="window.open('${p.comprovante_url}', '_blank')">👁️ VER</button></td>
+                <td style="display:flex; gap:6px;">
+                    <button class="btn-sm btn-success" onclick="adminAprovarPedido(${p.id})">✓ OK</button>
+                    <button class="btn-sm btn-danger" onclick="adminReprovarPedido(${p.id})">✕</button>
+                </td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--text-dim); padding:20px;">Nenhum pedido pendente</td></tr>';
+    }
+
+    async function adminAprovarPedido(id) {
+        await _supabase.from('pedidos').update({ status: 'aprovado' }).eq('id', id);
+        showToast('✅ Pedido aprovado!', 'success');
+        carregarPedidosAdmin();
+    }
+
+    async function adminReprovarPedido(id) {
+        if (confirm('Deseja realmente reprovar este pedido? O cliente verá "PAGAMENTO NÃO APROVADO".')) {
+            await _supabase.from('pedidos').update({ status: 'reprovado' }).eq('id', id);
+            showToast('❌ Pedido reprovado.', 'error');
+            carregarPedidosAdmin();
+        }
+    }
+
+    async function gerarLinkGenerico() {
+        const fileCapa = document.getElementById('up-capa').files[0];
+        const fileAudio = document.getElementById('up-audio').files[0];
+        if (!fileCapa || !fileAudio) {
+            return showToast('⚠️ Selecione os dois arquivos!', 'error');
+        }
+
+        const loader = document.getElementById('loader-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const loaderText = document.getElementById('loader-text');
+
+        loader.style.display = 'flex';
+        progressBar.style.width = '0%';
+        progressText.innerText = '0%';
+
+        try {
+            loaderText.innerText = 'ENVIANDO CAPA...';
+            const nomeCapa = `capas/${Date.now()}_${fileCapa.name}`;
+            await _supabase.storage.from('playbacks').upload(nomeCapa, fileCapa);
+            progressBar.style.width = '40%';
+            progressText.innerText = '40%';
+
+            const { data: resCapa } = await _supabase.storage.from('playbacks').createSignedUrl(nomeCapa, 315360000);
+            document.getElementById('out-capa').value = resCapa.signedUrl;
+
+            loaderText.innerText = 'ENVIANDO ÁUDIO (ISSO PODE DEMORAR)...';
+            const nomeAudio = `audios/${Date.now()}_${fileAudio.name}`;
+            await _supabase.storage.from('playbacks').upload(nomeAudio, fileAudio);
+            progressBar.style.width = '90%';
+            progressText.innerText = '90%';
+
+            const { data: resAudio } = await _supabase.storage.from('playbacks').createSignedUrl(nomeAudio, 315360000);
+            document.getElementById('out-audio').value = resAudio.signedUrl;
+
+            progressBar.style.width = '100%';
+            progressText.innerText = '100%';
+            showToast('✅ Upload concluído com sucesso!', 'success', 4000);
+        } catch (e) {
+            showToast('❌ Erro durante o upload. Tente novamente.', 'error');
+        } finally {
+            loader.style.display = 'none';
+        }
+    }
+
+    /* ============================================================
+       PIX — GERAÇÃO DE PAYLOAD
+    ============================================================ */
+    function gerarPixDinamico(valor) {
+        const chave = "2557c638-b96a-4c51-a170-9690a4d75061";
+        const nome = "CHARLES A BRAGA";
+        const cidade = "MUCAMBO";
+        const txtValor = valor.toFixed(2);
+
+        let payload = "000201010211";
+        let merchantAccount = "0014br.gov.bcb.pix0136" + chave;
+        payload += "26" + (merchantAccount.length) + merchantAccount;
+        payload += "520400005303986";
+        payload += "54" + (txtValor.length.toString().padStart(2, '0')) + txtValor;
+        payload += "5802BR";
+        payload += "59" + (nome.length.toString().padStart(2, '0')) + nome;
+        payload += "60" + (cidade.length.toString().padStart(2, '0')) + cidade;
+        payload += "62070503***6304";
+
+        function getCRC16(data) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < data.length; i++) {
+                crc ^= data.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+                    else crc <<= 1;
+                }
+            }
+            return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        }
+
+        return payload + getCRC16(payload);
+    }
+
+    /* ============================================================
+       COPIAR PIX
+    ============================================================ */
+    function copyPix() {
+        const textToCopy = document.getElementById('pix-key').innerText;
+        const btn = document.getElementById('btn-copy-pix');
+
+        if (textToCopy === 'Gerando chave...' || textToCopy === 'Adicione itens ao carrinho') {
+            return showToast('⚠️ Adicione itens ao carrinho primeiro!', 'error');
+        }
+
+        const originalText = btn.innerText;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            btn.innerText = '✓ COPIADO!';
+            btn.style.background = 'var(--success)';
+            btn.style.color = 'white';
+            showToast('📋 Código PIX copiado!', 'success');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.background = 'var(--glass)';
+                btn.style.color = '#fff';
+            }, 2000);
+        }).catch(() => {
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            btn.innerText = '✓ COPIADO!';
+            btn.style.background = 'var(--success)';
+            btn.style.color = 'white';
+            showToast('📋 Código PIX copiado!', 'success');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.background = 'var(--glass)';
+                btn.style.color = '#fff';
+            }, 2000);
+        });
+    }
+
+    /* ============================================================
+       START
+    ============================================================ */
+    /* ============================================================
+       ZERAR CONTADOR
+    ============================================================ */
+    async function zerarContador() {
+        if (!confirm('Tem certeza que deseja zerar o contador de visualizações?')) {
+            return;
+        }
+        
+        try {
+            await _supabase
+                .from('site_stats')
+                .update({ visualizacoes: 0 })
+                .eq('id', 1);
+            
+            document.getElementById('contador-visualizacoes').innerText = '0';
+            showToast('✅ Contador zerado com sucesso!', 'success');
+        } catch (e) {
+            showToast('❌ Erro ao zerar contador', 'error');
+            console.error(e);
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
