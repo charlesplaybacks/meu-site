@@ -1532,7 +1532,10 @@
                     <div class="card-title" style="margin-bottom:0;">⚙️ Painel de Controle</div>
                 </div>
                 <div style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
-                    <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📊 Visualizações do Site</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📊 Visualizações do Site</div>
+                        <button class="btn-sm btn-danger" onclick="zerarContador()" style="padding: 6px 12px; font-size: 10px;">🔄 Zerar</button>
+                    </div>
                     <div style="font-size: 36px; font-weight: 900; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow);" id="contador-visualizacoes">0</div>
                 </div>
             </div>
@@ -1649,7 +1652,24 @@
         if (session) updateUserStatus(session.user);
         renderL();
         updateCartUI();
-        incrementarVisualizacoes();
+        
+        // LÓGICA DEFINITIVA DE CONTAGEM
+        // 1. Só conta se não for Admin (verificado pelo localStorage que criamos no login)
+        // 2. Só conta uma vez por "sessão" (se fechar o navegador e abrir de novo, conta outra vez)
+        if (localStorage.getItem('MP_IS_ADMIN') === 'true') {
+            console.log('✅ ADMIN LOGADO - Não contando visualização.');
+        } else if (sessionStorage.getItem('VISITOU_HOJE')) {
+            console.log('ℹ️ Você já foi contado nesta sessão.');
+        } else {
+            // Se não for admin e não tiver visitado ainda, conta após 2 segundos
+            setTimeout(() => {
+                // Verificação dupla: checar se o usuário logou como admin nesse meio tempo
+                if (localStorage.getItem('MP_IS_ADMIN') !== 'true') {
+                    incrementarVisualizacoes();
+                    sessionStorage.setItem('VISITOU_HOJE', 'true');
+                }
+            }, 2000);
+        }
     }
 
     /* ============================================================
@@ -1671,20 +1691,24 @@
 
             if (stats) {
                 // Atualizar o contador existente
+                const novoValor = stats.visualizacoes + 1;
                 await _supabase
                     .from('site_stats')
-                    .update({ visualizacoes: stats.visualizacoes + 1 })
+                    .update({ visualizacoes: novoValor })
                     .eq('id', 1);
+                console.log('📊 Contador incrementado para:', novoValor);
             } else {
                 // Criar novo registro se não existir
                 await _supabase
                     .from('site_stats')
                     .insert([{ id: 1, visualizacoes: 1 }]);
+                console.log('📊 Primeiro acesso registrado');
             }
         } catch (e) {
             console.error('Erro ao incrementar visualizações:', e);
         }
     }
+
 
     async function carregarVisualizacoes() {
         try {
@@ -1742,11 +1766,36 @@
             profileBox.style.display = 'block';
             document.getElementById('profile-email').innerText = user.email;
             document.getElementById('profile-avatar-letter').innerText = name.charAt(0).toUpperCase();
+            
+            // Verificar se é admin e marcar no localStorage
+            verificarEMarcarAdmin(user.id);
         } else {
             display.innerText = 'Visitante';
             display.classList.remove('logged-in');
             authBox.style.display = 'block';
             profileBox.style.display = 'none';
+            // Limpar marcação de admin ao fazer logout
+            localStorage.removeItem('MP_IS_ADMIN');
+        }
+    }
+    
+    async function verificarEMarcarAdmin(userId) {
+        try {
+            const { data: profile } = await _supabase
+                .from('profiles')
+                .select('is_admin')
+                .eq('id', userId)
+                .single();
+            
+            if (profile && profile.is_admin === true) {
+                localStorage.setItem('MP_IS_ADMIN', 'true');
+                console.log('✅ Admin marcado no navegador');
+            } else {
+                localStorage.removeItem('MP_IS_ADMIN');
+            }
+        } catch (e) {
+            console.error('Erro ao verificar admin:', e);
+            localStorage.removeItem('MP_IS_ADMIN');
         }
     }
 
@@ -2196,6 +2245,28 @@
     /* ============================================================
        START
     ============================================================ */
+    /* ============================================================
+       ZERAR CONTADOR
+    ============================================================ */
+    async function zerarContador() {
+        if (!confirm('Tem certeza que deseja zerar o contador de visualizações?')) {
+            return;
+        }
+        
+        try {
+            await _supabase
+                .from('site_stats')
+                .update({ visualizacoes: 0 })
+                .eq('id', 1);
+            
+            document.getElementById('contador-visualizacoes').innerText = '0';
+            showToast('✅ Contador zerado com sucesso!', 'success');
+        } catch (e) {
+            showToast('❌ Erro ao zerar contador', 'error');
+            console.error(e);
+        }
+    }
+
     init();
 </script>
 </body>
