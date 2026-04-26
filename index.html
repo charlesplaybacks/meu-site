@@ -1350,7 +1350,7 @@
 
 
         /* ============================================================
-           PROMOÇÕES — ESTILOS
+           PROMOÇÕES — ESTILOS V3 (COM DATA)
         ============================================================ */
         .promo-badge {
             position: absolute;
@@ -1389,6 +1389,31 @@
             text-shadow: 0 0 14px var(--danger-glow);
             line-height: 1;
         }
+
+        .promo-timer {
+            font-size: 10px;
+            color: #fff;
+            background: rgba(255, 71, 71, 0.85);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: 800;
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(255, 71, 71, 0.2);
+            animation: pulseTimer 2s infinite;
+        }
+
+        @keyframes pulseTimer {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; transform: scale(0.98); }
+            100% { opacity: 1; }
+        }
+
+        .promo-timer i { font-style: normal; font-size: 12px; }
 
         /* Admin — seção de promoções */
         .promo-admin-card {
@@ -1441,6 +1466,13 @@
             flex-shrink: 0;
         }
 
+        .promo-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
         .promo-input-wrap {
             display: flex;
             align-items: center;
@@ -1452,15 +1484,16 @@
             color: var(--text-dim);
             font-weight: 700;
             white-space: nowrap;
+            width: 65px;
         }
 
         .promo-input {
-            width: 70px !important;
+            width: 100% !important;
             padding: 8px 10px !important;
             margin-bottom: 0 !important;
             font-size: 12px !important;
             border-radius: 10px !important;
-            text-align: center;
+            background: rgba(0,0,0,0.5) !important;
         }
 
         .promo-toggle-btn {
@@ -1487,8 +1520,6 @@
             border: 1px solid var(--glass-border);
             color: var(--text-dim);
         }
-
-        .promo-toggle-btn:hover { transform: translateY(-1px); }
 
         .promo-status-badge {
             display: inline-flex;
@@ -1727,7 +1758,7 @@
                 <div class="admin-header">
                     <div class="card-title" style="margin-bottom:0;">🔥 Gerenciar Promoções</div>
                 </div>
-                <p style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">Defina o percentual de desconto (%) para qualquer playback. O desconto aparecerá automaticamente na loja.</p>
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">Defina o desconto (%) e a data de validade. A promoção sairá do ar sozinha após o prazo.</p>
                 <div id="promo-lista-admin">
                     <div style="text-align:center; padding:30px; color:var(--text-dim);">
                         <div class="spinner-ring" style="margin:0 auto 14px; width:36px; height:36px; border-width:3px;"></div>
@@ -2132,15 +2163,42 @@
         const { data } = await _supabase.from('musicas').select('*').order('id', { ascending: ordem === 'asc' });
 
         if (data && data.length > 0) {
+            const agora = new Date();
             vitrine.innerHTML = data.map((p, idx) => {
                 const precoOriginal = parseFloat(p.preço || p.Preço);
-                const temPromo = p.desconto_promo && p.desconto_promo > 0;
+                
+                // Lógica de Expiração
+                let temPromo = p.desconto_promo && p.desconto_promo > 0;
+                let dataExpira = p.promo_expira ? new Date(p.promo_expira) : null;
+                
+                if (temPromo && dataExpira && agora > dataExpira) {
+                    temPromo = false; // Promoção expirou
+                }
+
                 const desconto = temPromo ? Math.min(Math.max(parseInt(p.desconto_promo), 0), 100) : 0;
                 const precoFinal = temPromo ? precoOriginal * (1 - desconto / 100) : precoOriginal;
 
                 const promoBadgeHTML = temPromo
                     ? `<div class="promo-badge">-${desconto}% OFF</div>`
                     : '';
+
+                let timerHTML = '';
+                if (temPromo && dataExpira) {
+                    const diff = dataExpira - agora;
+                    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    
+                    let label = "";
+                    if (dias > 0) {
+                        label = `ACABA EM: ${dias}d ${horas}h`;
+                    } else if (horas > 0) {
+                        label = `ACABA EM: ${horas}h ${minutos}min`;
+                    } else {
+                        label = `ACABA EM POUCOS MINUTOS!`;
+                    }
+                    timerHTML = `<div class="promo-timer"><i>⏰</i> ${label}</div>`;
+                }
 
                 const priceHTML = temPromo
                     ? `<div class="price-row" style="flex-direction:column; align-items:flex-start; gap:2px; margin-bottom:14px;">
@@ -2149,6 +2207,7 @@
                                 <span style="font-size:9px; background:rgba(255,71,71,0.15); color:var(--danger); border:1px solid rgba(255,71,71,0.3); padding:2px 7px; border-radius:20px; font-weight:900;">-${desconto}%</span>
                             </div>
                             <span class="price-promo">R$ ${precoFinal.toFixed(2)}</span>
+                            ${timerHTML}
                        </div>`
                     : `<div class="price-row">
                             <span class="price">R$ ${precoOriginal.toFixed(2)}</span>
@@ -2471,7 +2530,7 @@
 
 
     /* ============================================================
-       ADMIN — GERENCIAR PROMOÇÕES (POR PERCENTUAL)
+       ADMIN — GERENCIAR PROMOÇÕES (V3 COM DATA)
     ============================================================ */
     async function carregarPromocoesAdmin() {
         const container = document.getElementById('promo-lista-admin');
@@ -2489,15 +2548,25 @@
             return;
         }
 
+        const agora = new Date();
+
         container.innerHTML = data.map(p => {
             const precoOriginal = parseFloat(p.preço || p.Preço);
             const descontoAtual = p.desconto_promo ? parseInt(p.desconto_promo) : 0;
-            const temPromo = descontoAtual > 0;
-            const statusBadge = temPromo
-                ? `<span class="promo-status-badge on">🔥 ${descontoAtual}% OFF</span>`
+            const dataExpira = p.promo_expira ? p.promo_expira.split('T')[0] : '';
+            
+            let temPromo = descontoAtual > 0;
+            let expirada = false;
+            if (temPromo && p.promo_expira && agora > new Date(p.promo_expira)) {
+                expirada = true;
+            }
+
+            const statusBadge = temPromo 
+                ? (expirada ? `<span class="promo-status-badge off">⌛ Expirada</span>` : `<span class="promo-status-badge on">🔥 ${descontoAtual}% OFF</span>`)
                 : `<span class="promo-status-badge off">Sem promo</span>`;
-            const btnClass = temPromo ? 'ativa' : 'inativa';
-            const btnLabel = temPromo ? '🔴 Remover' : '🟢 Ativar';
+            
+            const btnClass = (temPromo && !expirada) ? 'ativa' : 'inativa';
+            const btnLabel = (temPromo && !expirada) ? '🔴 Remover' : '🟢 Ativar';
 
             return `
             <div class="promo-admin-card" id="promo-card-${p.id}">
@@ -2505,18 +2574,19 @@
                 <div class="promo-admin-info">
                     <div class="promo-name">${p.nome || p.Nome}</div>
                     <div class="promo-price-atual">Preço: R$ ${precoOriginal.toFixed(2)} ${statusBadge}</div>
-                    <div class="promo-input-wrap" style="margin-top:8px;">
-                        <label>% Desconto:</label>
-                        <input type="number" class="promo-input" id="promo-val-${p.id}" 
-                               value="${descontoAtual}" 
-                               placeholder="Ex: 10" 
-                               min="0" max="100" step="1"
-                               style="width:70px !important;">
+                    <div class="promo-input-group">
+                        <div class="promo-input-wrap">
+                            <label>% Desconto:</label>
+                            <input type="number" class="promo-input" id="promo-val-${p.id}" value="${descontoAtual}" placeholder="Ex: 10" min="0" max="100">
+                        </div>
+                        <div class="promo-input-wrap">
+                            <label>Válido até:</label>
+                            <input type="date" class="promo-input" id="promo-date-${p.id}" value="${dataExpira}">
+                        </div>
                     </div>
                 </div>
                 <div class="promo-admin-controls">
-                    <button class="promo-toggle-btn ${btnClass}" id="promo-btn-${p.id}"
-                            onclick="salvarPromocao(${p.id})">
+                    <button class="promo-toggle-btn ${btnClass}" id="promo-btn-${p.id}" onclick="salvarPromocao(${p.id})">
                         ${btnLabel}
                     </button>
                 </div>
@@ -2525,48 +2595,51 @@
     }
 
     async function salvarPromocao(musicaId) {
-        const inputEl = document.getElementById(`promo-val-${musicaId}`);
+        const inputDesc = document.getElementById(`promo-val-${musicaId}`);
+        const inputDate = document.getElementById(`promo-date-${musicaId}`);
         const btnEl = document.getElementById(`promo-btn-${musicaId}`);
-        const descontoStr = inputEl ? inputEl.value.trim() : '';
-        const desconto = parseInt(descontoStr);
+        
+        const desconto = parseInt(inputDesc.value);
+        const dataExpira = inputDate.value;
 
         const estaAtivando = btnEl.classList.contains('inativa');
 
         if (estaAtivando) {
-            // Validar desconto
-            if (!descontoStr || isNaN(desconto) || desconto < 0 || desconto > 100) {
-                return showToast('⚠️ Informe um desconto entre 0 e 100%!', 'error');
+            if (isNaN(desconto) || desconto <= 0 || desconto > 100) {
+                return showToast('⚠️ Informe um desconto válido (1-100%)!', 'error');
             }
-            if (desconto === 0) {
-                return showToast('⚠️ O desconto deve ser maior que 0%!', 'error');
+            if (!dataExpira) {
+                return showToast('⚠️ Informe a data de validade!', 'error');
             }
 
             btnEl.disabled = true;
             btnEl.innerText = '⏳...';
 
             const { error } = await _supabase.from('musicas')
-                .update({ desconto_promo: desconto })
+                .update({ 
+                    desconto_promo: desconto, 
+                    promo_expira: dataExpira + 'T23:59:59' 
+                })
                 .eq('id', musicaId);
 
             if (error) {
-                showToast('❌ Erro ao salvar promoção: ' + error.message, 'error');
+                showToast('❌ Erro: ' + error.message, 'error');
                 btnEl.disabled = false;
             } else {
-                showToast(`🔥 Promoção de ${desconto}% ativada!`, 'success');
+                showToast(`🔥 Promoção ativada até ${dataExpira}!`, 'success');
                 await carregarPromocoesAdmin();
                 renderL();
             }
         } else {
-            // Remover promoção
             btnEl.disabled = true;
             btnEl.innerText = '⏳...';
 
             const { error } = await _supabase.from('musicas')
-                .update({ desconto_promo: null })
+                .update({ desconto_promo: null, promo_expira: null })
                 .eq('id', musicaId);
 
             if (error) {
-                showToast('❌ Erro ao remover promoção: ' + error.message, 'error');
+                showToast('❌ Erro: ' + error.message, 'error');
                 btnEl.disabled = false;
             } else {
                 showToast('✅ Promoção removida!', 'info');
