@@ -1529,6 +1529,16 @@
             <div class="card">
                 <div class="admin-header">
                     <button class="admin-back-btn" onclick="showPage('conta')">← Voltar</button>
+                    <div class="card-title" style="margin-bottom:0;">⚙️ Painel de Controle</div>
+                </div>
+                <div style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                    <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📊 Visualizações do Site</div>
+                    <div style="font-size: 36px; font-weight: 900; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow);" id="contador-visualizacoes">0</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="admin-header">
                     <div class="card-title" style="margin-bottom:0;">⚙️ Pedidos Pendentes</div>
                 </div>
                 <table class="admin-table">
@@ -1639,6 +1649,57 @@
         if (session) updateUserStatus(session.user);
         renderL();
         updateCartUI();
+        incrementarVisualizacoes();
+    }
+
+    /* ============================================================
+       CONTADOR DE VISUALIZAÇÕES
+    ============================================================ */
+    async function incrementarVisualizacoes() {
+        try {
+            // Buscar o registro de visualizações
+            const { data: stats, error: fetchError } = await _supabase
+                .from('site_stats')
+                .select('*')
+                .eq('id', 1)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Erro ao buscar stats:', fetchError);
+                return;
+            }
+
+            if (stats) {
+                // Atualizar o contador existente
+                await _supabase
+                    .from('site_stats')
+                    .update({ visualizacoes: stats.visualizacoes + 1 })
+                    .eq('id', 1);
+            } else {
+                // Criar novo registro se não existir
+                await _supabase
+                    .from('site_stats')
+                    .insert([{ id: 1, visualizacoes: 1 }]);
+            }
+        } catch (e) {
+            console.error('Erro ao incrementar visualizações:', e);
+        }
+    }
+
+    async function carregarVisualizacoes() {
+        try {
+            const { data: stats } = await _supabase
+                .from('site_stats')
+                .select('visualizacoes')
+                .eq('id', 1)
+                .single();
+
+            if (stats) {
+                document.getElementById('contador-visualizacoes').innerText = stats.visualizacoes.toLocaleString('pt-BR');
+            }
+        } catch (e) {
+            console.error('Erro ao carregar visualizações:', e);
+        }
     }
 
     /* ============================================================
@@ -1651,7 +1712,10 @@
         document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
         const targetTab = document.getElementById('tab-' + p);
         if (targetTab) targetTab.classList.add('active');
-        if (p === 'admin') carregarPedidosAdmin();
+        if (p === 'admin') {
+            carregarPedidosAdmin();
+            carregarVisualizacoes();
+        }
         if (p === 'downloads') renderDownloads();
         window.scrollTo(0, 0);
     }
